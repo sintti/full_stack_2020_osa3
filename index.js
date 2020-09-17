@@ -4,7 +4,6 @@ const morgan = require('morgan')
 const cors = require('cors')
 const app = express()
 const Person = require('./modules/person')
-const { response } = require('express')
 
 const unknownEndpoint = (req, res) => {
     res.status(404).send({ error: 'unknown endpoint'})
@@ -22,26 +21,35 @@ app.get('/api/persons', (req, res) => {
         })
 })
 
-// app.get('/info', (req, res) => {
-//     const length = persons.length
-//     const info = `Phonebook has info for ${length}`
-    
-//     res.status(200).send(`<div><p>${info}</p><p>${new Date}</p></div>`)
-// })
-
-// Jatketaanpa tästä levänneillä aivoilla! :)
-app.get('/api/persons/:id', (req, res) => {
-    Person.findById(req.params.id)
-        .then(person => {
-            res.json(person)
+app.get('/info', (req, res) => {
+    Person.find({})
+        .then(persons => {
+            console.log(persons.length)
+            let numberOfEntries = persons.length
+            let info = `Phonebook has info for ${numberOfEntries}`
+            res.status(200).send(`<div><p>${info}</p><p>${new Date}</p></div>`)
         })
 })
 
-app.delete('/api/persons/:id', (req, res) => {
+// Jatketaanpa tästä levänneillä aivoilla! :)
+app.get('/api/persons/:id', (req, res, next) => {
+    Person.findById(req.params.id)
+        .then(person => {
+            if (person) {
+                res.json(person)
+            } else {
+                res.status(404).end()
+            }
+        })
+        .catch(error => next(error))
+})
+
+app.delete('/api/persons/:id', (req, res, next) => {
     Person.findByIdAndDelete(req.params.id)
         .then(response => {
             res.status(204).end()
         })
+        .catch(error => next(error))
 })
 
 app.post('/api/persons', (req, res) => {
@@ -66,6 +74,18 @@ app.post('/api/persons', (req, res) => {
         res.json(savedPerson)
     })
 })
+
+const errorHandler = (error, request, response, next) => {
+    console.error(error.message)
+  
+    if (error.name === 'CastError') {
+      return response.status(400).send({ error: 'malformatted id' })
+    }
+  
+    next(error)
+  }
+  
+  app.use(errorHandler)
 
 app.use(unknownEndpoint)
 
